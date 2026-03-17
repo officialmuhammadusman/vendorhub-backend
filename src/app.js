@@ -1,10 +1,13 @@
+import "dotenv/config";
 import express          from "express";
 import cors             from "cors";
 import morgan           from "morgan";
 import swaggerUi        from "swagger-ui-express";
 import { swaggerSpec }  from "./config/swagger.js";
+import connectDB        from "./config/db.js";
 
-// ← dotenv removed from here! index.js handles it
+// Connect to MongoDB (works for both local and Vercel serverless)
+connectDB().catch(console.error);
 
 const app = express();
 
@@ -58,4 +61,8 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Named export for index.js (local dev)
 export { app };
+
+// Default export for Vercel serverless
+export default app;
