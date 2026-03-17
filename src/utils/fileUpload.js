@@ -2,26 +2,33 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { ApiError } from "./ApiError.js";
 import fs   from "fs";
+import os   from "os";
+import path from "path";
 
-// ─── Load Cloudinary config here directly ────────────────────────
-// This ensures credentials are always set regardless of import order
+// ─── Cloudinary config ────────────────────────────────────────────
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ─── Ensure temp folder exists ────────────────────────────────────
-const tempDir = "./public/temp";
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
+// ─── Use /tmp on Vercel (read-only filesystem), ./public/temp locally
+const getTempDir = () => {
+  // Vercel sets this env variable
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return os.tmpdir(); // /tmp on Vercel — always writable
+  }
+  const localTemp = path.join(process.cwd(), "public", "temp");
+  if (!fs.existsSync(localTemp)) {
+    fs.mkdirSync(localTemp, { recursive: true });
+  }
+  return localTemp;
+};
 
 // ─── Multer storage ───────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-    cb(null, tempDir);
+    cb(null, getTempDir());
   },
   filename: (req, file, cb) => {
     const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -50,7 +57,7 @@ export const uploadToCloudinary = async (localFilePath, folder = "vendorhub") =>
       folder,
     });
 
-    try { fs.unlinkSync(localFilePath); } catch { /* ignore */ }
+    try { fs.unlinkSync(localFilePath); } catch { /* ignore cleanup error */ }
     return result;
   } catch (error) {
     try { if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath); } catch { /* ignore */ }
