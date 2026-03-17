@@ -2,11 +2,9 @@ import "dotenv/config";
 import express          from "express";
 import cors             from "cors";
 import morgan           from "morgan";
-import swaggerUi        from "swagger-ui-express";
 import { swaggerSpec }  from "./config/swagger.js";
 import connectDB        from "./config/db.js";
 
-// Connect to MongoDB (works for both local and Vercel serverless)
 connectDB().catch(console.error);
 
 const app = express();
@@ -18,11 +16,45 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(morgan("dev"));
 
-// ─── Swagger Docs ─────────────────────────────────────────────────
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customSiteTitle: "VendorHub API Docs",
-  customCss: ".swagger-ui .topbar { background-color: #1a1a2e; }",
-}));
+// ─── Swagger Docs via CDN (works on Vercel) ───────────────────────
+app.get("/api/docs", (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VendorHub API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <style>
+    body { margin: 0; }
+    .swagger-ui .topbar { background-color: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = () => {
+      SwaggerUIBundle({
+        url:            "/api/docs/json",
+        dom_id:         "#swagger-ui",
+        presets:        [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout:         "StandaloneLayout",
+        deepLinking:    true,
+        displayRequestDuration: true,
+      });
+    };
+  </script>
+</body>
+</html>`);
+});
+
+// ─── Swagger JSON spec endpoint ───────────────────────────────────
+app.get("/api/docs/json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.json(swaggerSpec);
+});
 
 // ─── Routes ───────────────────────────────────────────────────────
 import authRoutes    from "./routes/auth.routes.js";
@@ -61,8 +93,5 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Named export for index.js (local dev)
 export { app };
-
-// Default export for Vercel serverless
 export default app;
