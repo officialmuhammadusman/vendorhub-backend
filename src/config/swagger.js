@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       { url: "http://localhost:8000/api/v1", description: "Local Development" },
-      { url: "https://your-app.railway.app/api/v1", description: "Production" },
+      { url: "https://vendorhub-backend.vercel.app/api/v1", description: "Production" },
     ],
     components: {
       securitySchemes: {
